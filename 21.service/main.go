@@ -16,19 +16,22 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	s := r.URL.String()
 	d, err := os.Open(s[1:])
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(w, "Error:", err)
+		//		log.Fatal(err)
 	}
 	defer d.Close()
 	entries, err := d.Readdir(-1)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(w, "Error: ", err)
+		//		log.Fatal(err)
 	}
 	for _, e := range entries {
 		if e.IsDir() {
 			continue
 		}
 		if strings.HasSuffix(e.Name(), ".txt") {
-			res := Convert(CountFile(filepath.Join(s[1:], e.Name())))
+			path := filepath.Join(s[1:], e.Name())
+			res := Convert(CountFile(path))
 			fmt.Fprintln(w, res)
 		}
 
@@ -57,11 +60,10 @@ func CountLines(r io.Reader) (int, error) {
 	return lines, sc.Err()
 }
 func Convert(str string, lines int) string {
-	type res struct {
-		Name  string `json:"Title"`
-		Lines int    `json:"Lines"`
-	}
-	d := res{Name: str, Lines: lines}
+	d := struct {
+		Name  string
+		Lines int
+	}{Name: str, Lines: lines}
 	json, _ := json.Marshal(d)
 	return string(json)
 }
