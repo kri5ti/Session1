@@ -2,51 +2,34 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
-	"time"
+	"sync"
 )
 
-type locker struct {
-	ch     chan int
-	status bool
-}
-
-func (l *locker) lock() {
-	l.status = true
-	l.ch <- 1
-}
-
-func (l *locker) unlock() {
-	if l.status {
-		l.status = false
-		<-l.ch
-	}
-}
-func getPicture(dest string, elem string, lock locker) {
-	lock.lock()
-	defer lock.unlock()
+func getPicture(dest string, elem string, wg *sync.WaitGroup, ch *chan int) {
+	defer func() { <-*ch }()
+	defer wg.Done()
 	out, _ := os.Create(dest)
 	defer out.Close()
 	resp, _ := http.Get(elem)
 	defer resp.Body.Close()
-	_, err := io.Copy(out, resp.Body)
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
-	time.Sleep(1 * time.Second)
+	ioutil.WriteFile(dest, b, 0644)
 
 }
 func main() {
-	ch := make(chan int, 2)
+	var wg sync.WaitGroup
 	js := []byte(`{ "Urls": [
 		"https://timedotcom.files.wordpress.com/2016/02/blue-sky-colorful-balloons.jpg?quality=85&w=1100",
         "http://www.sz0931.com/data/out/39/52585566-happiness-wallpaper.jpg",
-        "https://timedotcom.files.wordpress.com/2016/02/blue-sky-colorful-balloons.jpg?quality=85&w=1100",
+        "https://pp.vk.me/c618425/v618425852/19565/IAett21zJsU.jpg",
         "http://www.sz0931.com/data/out/39/52585566-happiness-wallpaper.jpg",
         "https://timedotcom.files.wordpress.com/2016/02/blue-sky-colorful-balloons.jpg?quality=85&w=1100",
         "http://www.sz0931.com/data/out/39/52585566-happiness-wallpaper.jpg",
@@ -64,13 +47,14 @@ func main() {
 	var t st
 	err := json.Unmarshal(js, &t)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Fatal(err)
 	}
-	for i := 0; i < len(t.Urls)-1; i++ {
-
+	ch := make(chan int, 2)
+	for i, _ := range t.Urls {
+		wg.Add(1)
+		ch <- 1
 		dest := "D:/git/Session1/22.Semaphore/photo_" + strconv.Itoa(i) + ".jpg"
-		go getPicture(dest, t.Urls[i], locker{ch, false})
-
+		go getPicture(dest, t.Urls[i], &wg, &ch)
 	}
-	time.Sleep(15 * time.Second)
+	wg.Wait()
 }
