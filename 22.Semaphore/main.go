@@ -15,7 +15,10 @@ func getPicture(dest string, elem string, wg *sync.WaitGroup, ch *chan int) {
 	defer wg.Done()
 	out, _ := os.Create(dest)
 	defer out.Close()
-	resp, _ := http.Get(elem)
+	resp, err := http.Get(elem)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -49,7 +52,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ch := make(chan int, 2)
+	n, err := strconv.Atoi(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	ch := make(chan int, n)
 	for i, _ := range t.Urls {
 		wg.Add(1)
 		ch <- 1
