@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-func getPicture(dest string, elem string, wg *sync.WaitGroup, ch *chan int) {
+func getPicture(dest, elem string, wg *sync.WaitGroup, ch *chan struct{}) {
 	defer func() { <-*ch }()
 	defer wg.Done()
 	out, _ := os.Create(dest)
@@ -56,10 +56,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ch := make(chan int, n)
+	ch := make(chan struct{}, n)
 	for i, _ := range t.Urls {
 		wg.Add(1)
-		ch <- 1
+		ch <- struct{}{}
 		dest := "D:/git/Session1/22.Semaphore/photo_" + strconv.Itoa(i) + ".jpg"
 		go getPicture(dest, t.Urls[i], &wg, &ch)
 	}
